@@ -14,7 +14,7 @@ from plotly.subplots import make_subplots
 app = dash.Dash(__name__, external_stylesheets=[
     dbc.themes.BOOTSTRAP
 ])
-
+server = app.server
 
 def create_upload_component(id, label, icon_file, info_mark_text=None, info_mark_id=None):
     return html.Div([
