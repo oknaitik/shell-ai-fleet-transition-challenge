@@ -3,7 +3,7 @@ import pandas as pd
 import gurobipy as gp
 from gurobipy import GRB
 from inputs import ModelInputs
-import time
+# import time
 
 def get_compatible_distances(d, distances):
     idx = distances.index(d)
@@ -409,10 +409,10 @@ class OptiModel:
         if df.empty or len(df) == 0:
             return {}
         
-        df['Vehicle_Type'] = df['ID'].str.split('_').str[0]
-        df = df.groupby(['Year', 'Vehicle_Type']).sum().reset_index()
+        df['Drivetrain'] = df['ID'].str.split('_').str[0]
+        df = df.groupby(['Year', 'Drivetrain']).sum().reset_index()
 
-        new_df = df[['Year', 'Vehicle_Type', 'Num_Vehicles']]
+        new_df = df[['Year', 'Drivetrain', 'Num_Vehicles']]
         # new_df = new_df.sort_values(['Year'])
         return new_df
 
@@ -423,7 +423,4 @@ class OptiModel:
         df['Emissions_limit'] = [self.emissions_limit[yr] for yr in range(r[0], r[1] + 1)]
         df['Emissions_limit'] = df['Emissions_limit'].round(0)
         return df
-
-    
         
- 
