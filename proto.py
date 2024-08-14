@@ -14,7 +14,7 @@ from plotly.subplots import make_subplots
 app = dash.Dash(__name__, external_stylesheets=[
     dbc.themes.BOOTSTRAP
 ])
-server = app.server
+
 
 def create_upload_component(id, label, icon_file, info_mark_text=None, info_mark_id=None):
     return html.Div([
@@ -121,7 +121,13 @@ def center_title(fig):
             'x': 0.5,
             'xanchor': 'center',
             'yanchor': 'top'
-        }
+        }, 
+    )
+    return fig
+
+def update_bgcolor(fig):
+    fig.update_layout(
+        plot_bgcolor="#eff8ee"
     )
     return fig
 
@@ -368,8 +374,8 @@ app.layout = dbc.Container([
                                     'verticalAlign': 'middle', 
                                     'marginRight': '4px', 
                                 }),
-                                html.Div(['Runtime (secs)*'], style={'fontWeight': '400'}),
-                                info_mark(info_text='(*Mandatory) Enter the duration you want the model to run for. Greater the duration, better the result.', id='runtime'),
+                                html.Div(['Runtime(secs)*'], style={'fontWeight': '400'}),
+                                info_mark(info_text='(Mandatory) Enter the duration you want the model to run for. Greater the duration, better the result.', id='runtime'),
                             ], style={'width': '180px', 'display': 'flex', 'alignItems': 'center', 'marginRight': '8px'}),
                             
                             dbc.Input(id='input-time-limit', type='number', placeholder='', min=60, style={
@@ -480,7 +486,7 @@ app.layout = dbc.Container([
                             {'label': 'Vehicles Bought and Sold', 'value': 'buy_sell'},
                             # {'label': 'Sell', 'value': 'sell'},
                             {'label': 'Vehicles Used', 'value': 'use'}, 
-                            {'label': 'Adoption Trend of Vehicles by Type', 'value': 'adoption_trend'}, 
+                            {'label': 'Annual Drivetrain Composition', 'value': 'adoption_trend'}, 
                             {'label': 'Carbon Emissions Trend', 'value': 'emissions_trend'}
                         ],
                         placeholder="Select",
@@ -491,7 +497,7 @@ app.layout = dbc.Container([
                 html.Div([
                     html.Div([
                         html.Div([
-                            html.Label('Type:', style={'display': 'inline-block', 'marginRight': '10px'}),
+                            html.Label('Drivetrain:', style={'display': 'inline-block', 'marginRight': '10px'}),
                             create_radio_items(items=['BEV', 'Diesel', 'LNG'], value='LNG', id='type-filter'), 
                         ], style={'width': '60%', 'display': 'inline-block'}),
                         html.Div([
@@ -904,7 +910,7 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
         return {}
         
     fig = None
-    color_map = {'Buy': '#ef553b', 'Sell': '#636efa'}
+
     if selected_variable == 'cost': 
         df = model.cost_breakdown(selected_range, selected_type, selected_size)
         
@@ -961,10 +967,18 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
             fig = add_text_empty_plot(fig)
         
     elif selected_variable == 'buy_sell':
-        df = model.buy_sell_filtered(selected_range, selected_type, selected_size) 
+        color_map_1 = {'Buy': '#ef553b', 'Sell': '#636efa'}
 
+        df = model.buy_sell_filtered(selected_range, selected_type, selected_size) 
         if (isinstance(df, pd.DataFrame) or isinstance(df, pd.Series)) and not df.empty and len(df) > 0:
-            nmax = max(df.loc[df['Type'] == 'Buy', 'Num_Vehicles']) + max(df.loc[df['Type'] == 'Sell', 'Num_Vehicles']) + 1
+            df_buy = df.loc[df['Type'] == 'Buy', 'Num_Vehicles']
+            df_sell = df.loc[df['Type'] == 'Sell', 'Num_Vehicles']
+            nmax = 1
+            if (isinstance(df_buy, pd.DataFrame) or isinstance(df_buy, pd.Series)) and not df_buy.empty and len(df_buy) > 0:
+                nmax += max(df_buy)
+            if (isinstance(df_sell, pd.DataFrame) or isinstance(df_sell, pd.Series)) and not df_sell.empty and len(df_sell) > 0:
+                nmax += max(df_sell)
+            
             df = df.sort_values('ID_Year')
             fig = px.bar( 
                 df, 
@@ -975,7 +989,7 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
                 title=f'{selected_type}_{selected_size} Vehicles Bought/Sold by Year', 
                 range_x=[selected_range[0] - 1, selected_range[1] + 1], 
                 range_y=[0, nmax], 
-                color_discrete_map=color_map
+                color_discrete_map=color_map_1
             )
 
             # Update x-axis to show only integer ticks
@@ -987,9 +1001,11 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
             fig.update_yaxes(title_text='No. of Vehicles')
             fig.update_traces(width=0.5)
             fig = center_title(fig)
+            fig = update_bgcolor(fig)
         else:
             fig = px.bar()
             fig = add_text_empty_plot(fig)
+            fig = update_bgcolor(fig)
         
     elif selected_variable == 'use':
         df = model.use_filtered(selected_range, selected_type, selected_size, selected_fuel, selected_dist)
@@ -1015,23 +1031,26 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
             fig.update_yaxes(title_text='No. of Vehicles')
             fig.update_traces(width=0.5)
             fig = center_title(fig)
+            fig = update_bgcolor(fig)
         else:
             fig = px.bar()
             fig = add_text_empty_plot(fig)
+            fig = update_bgcolor(fig)
 
     elif selected_variable == 'adoption_trend':
+        color_map_2 = {'BEV': '#00cc96', 'Diesel': '#ef553b', 'LNG': '#636efa'}
+
         df = model.use_trend(selected_range)
         # print(df)
         if (isinstance(df, pd.DataFrame) or isinstance(df, pd.Series)) and not df.empty and len(df) > 0:
-            fig = px.line(
+            fig = px.bar(
                 df, 
                 x='Year', 
                 y='Num_Vehicles', 
-                color='Vehicle_Type', 
-                title=f'Adoption Trend of Vehicles by Type (based on No. of Vehicles used)',
+                color='Drivetrain', 
+                title=f'Annual Drivetrain Composition (based on Vehicles used)',
                 range_x = [selected_range[0] - 1, selected_range[1] + 1], 
-                line_shape = 'spline', 
-                # markers=True
+                color_discrete_map=color_map_2
             )
 
             # fig = add_integer_ticks_xaxis(fig)
@@ -1041,16 +1060,12 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
                 tickformat='d'  # 'd' format specifier for integers
             )
             fig.update_yaxes(title_text='No. of Vehicles')
-            fig.update_traces(
-                mode='lines+markers',
-                marker=dict(symbol='diamond-open', size=10, line=dict(width=1, color='DarkSlateGrey')),
-                line=dict(width=2)
-            )
-
             fig = center_title(fig)
+            fig = update_bgcolor(fig)
         else:
             fig = px.line()
             fig = add_text_empty_plot(fig)
+            fig = update_bgcolor(fig)
     
     elif selected_variable == 'emissions_trend':
         df = model.emissions_trend(selected_range)
@@ -1065,10 +1080,12 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
             )
 
             fig.add_trace(
-                go.Scatter(x=df['Year'], y=df['Emissions_limit'], name="Emissions Limit", 
-                        mode='lines+markers',
-                        line=dict(width=2),
-                        marker=dict(symbol='diamond-open', size=10, line=dict(width=1, color='DarkSlateGrey')))
+                go.Scatter(
+                    x=df['Year'], y=df['Emissions_limit'], name="Emissions Limit", 
+                    mode='lines+markers', line=dict(width=2),
+                    marker=dict(symbol='diamond-open', size=10, line=dict(width=1, color='DarkSlateGrey')),
+                    # fill='tozeroy', fillcolor='rgba(0, 100, 80, 0.2)'
+                )
             )
 
             # Update layout
@@ -1086,10 +1103,12 @@ def update_chart(selected_range, selected_type, selected_size, selected_fuel, se
                 legend=dict(x=1, y=1, bgcolor='rgba(255, 255, 255, 0.5)')
             )
             fig = center_title(fig)
+            fig = update_bgcolor(fig)
             
         else:
             fig = px.line()
             fig = add_text_empty_plot(fig)
+            fig = update_bgcolor(fig)
     return fig
 
 
